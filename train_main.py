@@ -58,9 +58,9 @@ def main(args):
 
     files = load_files(config['file_path'])
 
-    train_data, val_data, test_data = build_train_data(files, args.batch_size)
+    train_data, val_data, test_data = build_train_data(files, args.batch_size, args.gpu)
 
-    model = ur_vit_base_patch16(config['N'])
+    model = ur_vit_base_patch16(config['N']).to(args.gpu)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -97,12 +97,12 @@ if __name__ == "__main__":
     parser.add_argument('--data',
                         type=str,
                         help='Dataset name (eg. Manhattan, Beijing)',
-                        default='Manhattan')
+                        default='Beijing')
 
     parser.add_argument('--batch_size',
                         type=int,
                         help='batch_size',
-                        default=64)
+                        default=16)
 
     parser.add_argument('--lr',
                         type=float,
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu',
                         type=str,
                         help='GPU',
-                        default="cuda:0")
+                        default="cuda:3")
 
     parser.add_argument('--seed',
                         type=int,

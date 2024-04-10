@@ -9,7 +9,7 @@ from torchvision import transforms
 
 
 class myDataset(Dataset):
-    def __init__(self, train=1):
+    def __init__(self, gpu, train=1):
         self.train = train
         # for training
         self.data = []
@@ -18,6 +18,8 @@ class myDataset(Dataset):
         self.sample = []
         self.positive = []
         self.negative = []
+
+        self.gpu = gpu
 
     def append(self, input):
         if self.train == 1:
@@ -58,6 +60,6 @@ class myDataset(Dataset):
             zero_negtive = torch.zeros(grid_num)
             zero_negtive[negtive] = 1
 
-            return zero_sample, zero_postive, zero_negtive
+            return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
         else:
-            return self.sample[index], self.positive[index], self.negative[index]
+            return self.sample[index].to(self.gpu), self.positive[index].to(self.gpu), self.negative[index].to(self.gpu)

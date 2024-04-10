@@ -76,8 +76,8 @@ def output(now):
 
 
 # sample - positive - negative
-def build_data(data, files, bsz, train=1):
-    res = myDataset(train)
+def build_data(data, files, bsz, gpu, train=1):
+    res = myDataset(gpu, train)
 
     for item in data:
         # iterater rate from 0.2 to 1
@@ -119,7 +119,7 @@ def build_data(data, files, bsz, train=1):
                                        shuffle=True)
 
 
-def build_train_data(files, batch_size):
+def build_train_data(files, batch_size, gpu):
     print(len(files))
     rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
 
@@ -127,8 +127,8 @@ def build_train_data(files, batch_size):
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
 
-    train_set = build_data(train_data, files, batch_size, train=1)
-    val_set = build_data(val_data, files, batch_size, train=0)
-    test_set = build_data(test_data, files, batch_size, train=0)
+    train_set = build_data(train_data, files, batch_size, gpu, train=1)
+    val_set = build_data(val_data, files, batch_size, gpu, train=0)
+    test_set = build_data(test_data, files, batch_size, gpu, train=0)
 
     return train_set, val_set, test_set

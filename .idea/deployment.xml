@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" confirmBeforeDeletion="false">
-    <option name="confirmBeforeDeletion" value="false" />
+  <component name="PublishConfigData" autoUpload="Always" serverName="zhangrx@10.254.9.180:22 agent (4)" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+    <option name="confirmBeforeUploading" value="false" />
     <serverData>
       <paths name="hlz@172.17.60.30:22 agent">
         <serverdata>
@@ -20,7 +20,7 @@
       <paths name="zhangrx@10.254.9.180:22 agent (4)">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/zhangrx/STAGI" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
@@ -32,5 +32,6 @@
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
