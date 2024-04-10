@@ -1,0 +1,12 @@
+{
+  "Manhattan": {
+    "N": 69,
+    "matrix_path": "data/graph/od_matrix.npy",
+    "file_path": "data/regression_data"
+  },
+  "Beijing": {
+    "N": 1020,
+    "matrix_path": "data/graph/od_matrix.npy",
+    "file_path": "data/Beijing_regression_data"
+  }
+}

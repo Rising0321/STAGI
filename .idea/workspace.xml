@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a21da785-d823-4a81-ae41-2168c2956534" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-    </list>
+    <list default="true" id="a21da785-d823-4a81-ae41-2168c2956534" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -61,7 +59,7 @@
       <recent name="D:\Models\STAGI\data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.train_main">
+  <component name="RunManager" selected="Python.process_beijing_task_regression">
     <configuration name="myDataset" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="STAGI" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -150,28 +148,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="train_main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
-      <module name="STAGI" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_main.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="Python tests in train_main.py" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
       <module name="STAGI" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -188,7 +164,6 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.train_main" />
       <item itemvalue="Python.process_beijing_task_regression" />
       <item itemvalue="Python.myDataset" />
       <item itemvalue="Python.process_task_regression" />
@@ -227,7 +202,7 @@
       <workItem from="1712028232992" duration="626000" />
       <workItem from="1712049208826" duration="88000" />
       <workItem from="1712631441159" duration="2315000" />
-      <workItem from="1712679910269" duration="12555000" />
+      <workItem from="1712679910269" duration="12929000" />
     </task>
     <servers />
   </component>
