@@ -91,7 +91,7 @@ def build_data(data, files, bsz, gpu, train=1):
             if len(np.where(item >= anchor_value)[0]) <= 1:
                 continue
 
-            if train == 1:
+            if train == 1 or train == 2:
                 res.append((item, anchor_value))
 
             else:
@@ -131,4 +131,6 @@ def build_train_data(files, batch_size, gpu):
     val_set = build_data(val_data, files, batch_size, gpu, train=0)
     test_set = build_data(test_data, files, batch_size, gpu, train=0)
 
-    return train_set, val_set, test_set
+    baseline_set = build_data(train_data, files, batch_size, gpu, train=2)
+
+    return train_set, val_set, test_set, baseline_set
