@@ -35,22 +35,6 @@ def load_files(walk_path):
     return datas
 
 
-def evaluation(sum_pos, sum_neg):
-    # sum pos is in the format of (right, total), sum neg is in the format of (right, total)
-    # please calculate the roc_auc, f1, accuracy, precision, recall using sklearn
-
-    truth = [1] * sum_pos[1] + [0] * sum_neg[1]
-    prediction = [1] * sum_pos[0] + [0] * (sum_pos[1] - sum_pos[0]) + [0] * sum_neg[0] + [1] * (sum_neg[1] - sum_neg[0])
-
-    roc_auc = roc_auc_score(truth, prediction)
-    f1 = f1_score(truth, prediction)
-    accuracy = accuracy_score(truth, prediction)
-    precision = precision_score(truth, prediction)
-    recall = recall_score(truth, prediction)
-
-    return roc_auc, f1, accuracy, precision, recall
-
-
 def init_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -76,8 +60,8 @@ def output(now):
 
 
 # sample - positive - negative
-def build_data(data, files, bsz, gpu, train=1):
-    res = myDataset(gpu, train)
+def build_data(data, files, bsz, gpu, train=1, regression=1):
+    res = myDataset(gpu, train, regression)
 
     for item in data:
         # iterater rate from 0.2 to 1
@@ -113,13 +97,13 @@ def build_data(data, files, bsz, gpu, train=1):
                     zero_negtive = torch.zeros(grid_num)
                     zero_negtive[negtive] = 1
 
-                    res.append((zero_sample, zero_postive, zero_negtive))
+                    res.append((item, zero_sample, zero_postive, zero_negtive))
 
     return torch.utils.data.DataLoader(res, batch_size=bsz,
                                        shuffle=True)
 
 
-def build_train_data(files, batch_size, gpu):
+def build_train_data(files, batch_size, gpu, regression):
     print(len(files))
     rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
 
@@ -127,8 +111,86 @@ def build_train_data(files, batch_size, gpu):
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
 
-    train_set = build_data(train_data, files, batch_size, gpu, train=1)
-    val_set = build_data(val_data, files, batch_size, gpu, train=0)
-    test_set = build_data(test_data, files, batch_size, gpu, train=0)
+    train_set = build_data(train_data, files, batch_size, gpu, train=1, regression=regression)
+    val_set = build_data(val_data, files, batch_size, gpu, train=0, regression=regression)
+    test_set = build_data(test_data, files, batch_size, gpu, train=0, regression=regression)
 
     return train_set, val_set, test_set
+
+
+def evaluation(sum_pos, sum_neg):
+    # sum pos is in the format of (right, total), sum neg is in the format of (right, total)
+    # please calculate the roc_auc, f1, accuracy, precision, recall using sklearn
+
+    truth = [1] * sum_pos[1] + [0] * sum_neg[1]
+    prediction = [1] * sum_pos[0] + [0] * (sum_pos[1] - sum_pos[0]) + [0] * sum_neg[0] + [1] * (sum_neg[1] - sum_neg[0])
+
+    roc_auc = roc_auc_score(truth, prediction)
+    f1 = f1_score(truth, prediction)
+    accuracy = accuracy_score(truth, prediction)
+    precision = precision_score(truth, prediction)
+    recall = recall_score(truth, prediction)
+
+    return roc_auc, f1, accuracy, precision, recall
+
+
+def evaluation_regression(data, tuple):
+    # data is a list of numpy array, tuple is a list of tuple
+    # please calculate the mae, mse, rmse using numpy
+    # return the mae, mse, rmse
+
+    truth = []
+    prediction = []
+
+    for i in range(len(data)):
+        for j in range(len(data[i])):
+            for k in range(len(data[i][j])):
+                if tuple[i][j][k][1] == 1 or tuple[i][j][k][2] == 1:
+                    truth.append(data[i][j][k])
+                    prediction.append(tuple[i][j][k][0])
+
+    truth = np.array(truth)
+    prediction = np.array(prediction)
+
+    mae = np.mean(np.abs(truth - prediction))
+    mse = np.mean((truth - prediction) ** 2)
+    rmse = np.sqrt(mse)
+    pcc = np.corrcoef(truth, prediction)[0, 1]
+
+    return mae, mse, rmse, pcc
+
+
+class RegressionMetrices:
+    def __init__(self):
+        self.data = []
+        self.tuple = []
+
+    def update(self, acc):
+        item, input_tuple = acc
+        self.data.append(item.detach().cpu().numpy())
+        self.tuple.append(input_tuple)
+
+    def output(self, phase, epoch):
+        mae, mse, rmse, pcc = evaluation_regression(self.data, self.tuple)
+        output(f"{phase}: Epoch: {epoch}, mae: {mae}, mse: {mse}, rmse: {rmse}, pcc: {pcc}")
+        return mae, mse, rmse
+
+
+class ClassificationMetrices:
+    def __init__(self):
+        self.sum_pos = (0, 0)
+        self.sum_neg = (0, 0)
+
+    def update(self, acc):
+        acc_pos, acc_neg = acc
+        self.sum_pos = (self.sum_pos[0] + acc_pos[0], self.sum_pos[1] + acc_pos[1])
+        self.sum_neg = (self.sum_neg[0] + acc_neg[0], self.sum_neg[1] + acc_neg[1])
+
+    def output(self, phase, epoch):
+        roc_auc, f1, accuracy, precision, recall = evaluation(self.sum_pos, self.sum_neg)
+        output(
+            f"{phase}: Epoch: {epoch}, Acc Pos: {self.sum_pos[0], self.sum_pos[1]}, Acc Neg: {self.sum_neg[0], self.sum_neg[1]}")
+        output(
+            f"roc_auc: {roc_auc}, f1: {f1}, accuracy: {accuracy}, precision: {precision}, recall: {recall}")
+
+        return roc_auc, f1, accuracy, precision, recall

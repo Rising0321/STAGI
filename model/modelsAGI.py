@@ -87,6 +87,25 @@ class myLoss(nn.Module):
         return loss
 
 
+class myLossRegression(nn.Module):
+
+    def __init__(self):
+        super(myLossRegression, self).__init__()
+        self.criteria = nn.MSELoss()
+
+    def forward(self, probs, anchor, postive, negative):
+        loss_initial = self.criteria(probs, anchor)
+        loss_pos = torch.mul(loss_initial, postive)
+
+        loss_neg = torch.mul(loss_initial, negative)
+
+        # print(torch.sum(postive_prob), torch.sum(negative_prob))
+
+        loss = (torch.sum(loss_pos) + torch.sum(loss_neg))  # / (torch.sum(postive) + torch.sum(negative))
+
+        return loss
+
+
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
 
@@ -115,12 +134,41 @@ class BertEmbeddings(nn.Module):
         position_ids = self.position_ids[:, :seq_length]
         inputs_embeds = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
-        embeddings = inputs_embeds + position_embeddings
+        embeddings = inputs_embeds + position_embeddings  # todo: delete this line
 
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
 
+
+class ContinuousValueEncoder(nn.Module):
+    def __init__(self, output_dim, max_position_embeddings=96):
+        super(ContinuousValueEncoder, self).__init__()
+        self.linear = nn.Linear(1, output_dim)
+        # 为-1的情况预定义一个编码向量
+        self.special_encoding = nn.Parameter(torch.randn(output_dim))
+        self.position_embeddings = nn.Embedding(max_position_embeddings, output_dim)
+
+    def forward(self, x):
+        # 判断输入是否为-1
+        is_special = (x == -1).float().unsqueeze(1)  # 增加维度以适应广播
+        # 通过线性层对输入进行编码
+        x_encoded = self.linear(x)
+        # 使用特殊值的编码向量替换-1对应的编码
+        x_encoded = torch.where(is_special == 1, self.special_encoding.expand_as(x_encoded), x_encoded)
+
+        seq_length = x.shape[1]
+        position_ids = self.position_ids[:, :seq_length]
+        position_embeddings = self.position_embeddings(position_ids)
+        x_encoded = x_encoded + position_embeddings  # todo: delete this line
+
+        x_encoded = self.dropout(x_encoded)
+        return x_encoded
+
+
+# 3 stage:
+# 2. calculate loss
+# 3. calculate acc
 
 class MaskedGenerativeEncoderViT(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
@@ -132,7 +180,7 @@ class MaskedGenerativeEncoderViT(nn.Module):
                  decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
                  mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False,
                  mask_ratio_min=0.5, mask_ratio_max=1.0, mask_ratio_mu=0.55, mask_ratio_std=0.25,
-                 vqgan_ckpt_path='vqgan_jax_strongaug.ckpt', grid_num=69):
+                 vqgan_ckpt_path='vqgan_jax_strongaug.ckpt', grid_num=69, regression=1):
         super().__init__()
 
         # --------------------------------------------------------------------------
@@ -143,10 +191,15 @@ class MaskedGenerativeEncoderViT(nn.Module):
         vocab_size = self.codebook_size
         self.fake_class_label = self.codebook_size - 1
         self.mask_token_label = vocab_size - 1
-        self.token_emb = BertEmbeddings(vocab_size=vocab_size,
-                                        hidden_size=embed_dim,
-                                        max_position_embeddings=self.max_len,
-                                        dropout=0.1)
+
+        if regression == 1:
+            self.token_emb = ContinuousValueEncoder(embed_dim,
+                                                    max_position_embeddings=self.max_len)
+        else:
+            self.token_emb = BertEmbeddings(vocab_size=vocab_size,
+                                            hidden_size=embed_dim,
+                                            max_position_embeddings=self.max_len,
+                                            dropout=0.1)
         # --------------------------------------------------------------------------
 
         # ur encoder specifics
@@ -164,9 +217,14 @@ class MaskedGenerativeEncoderViT(nn.Module):
         # --------------------------------------------------------------------------
         self.norm_pix_loss = norm_pix_loss
 
-        self.criterion = myLoss()
+        if regression:
+            self.criterion = myLossRegression()
+        else:
+            self.criterion = myLoss()
 
         self.initialize_weights()
+
+        self.regression = regression
 
     def get_mask_token_label(self):
         return self.mask_token_label
@@ -184,17 +242,25 @@ class MaskedGenerativeEncoderViT(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward_encoder(self, x):
+    def forward_encoder(self, train_tuple):
         # tokenization
+        x = train_tuple[0]
         # 69 69 69 69 4 69 69 7 69 69 69
         b, c = x.shape
-        masks = torch.ones((b, self.codebook_size - 1), device=x.device, dtype=torch.long) * self.mask_token_label
-        indices = torch.arange(0, self.codebook_size - 1, device=x.device, dtype=torch.long).unsqueeze(0).expand(b, -1)
-        # print(x.shape, masks.shape)
-        masks[x.bool()] = indices[x.bool()]
 
         # bert embedding
-        input_embeddings = self.token_emb(masks)
+        if self.regression == 1:
+            masks = torch.ones((b, self.codebook_size - 1), device=x.device, dtype=torch.float) * -1
+            masks = torch.where(train_tuple[1] == 1, masks, train_tuple[0])
+
+            input_embeddings = self.token_emb(masks)
+        else:
+            masks = torch.ones((b, self.codebook_size - 1), device=x.device, dtype=torch.long) * self.mask_token_label
+            indices = torch.arange(0, self.codebook_size - 1, device=x.device, dtype=torch.long) \
+                .unsqueeze(0).expand(b, -1)
+            # print(x.shape, masks.shape)
+            masks[x.bool()] = indices[x.bool()]
+            input_embeddings = self.token_emb(masks)
 
         for blk in self.blocks:
             input_embeddings = blk(input_embeddings)
@@ -202,14 +268,18 @@ class MaskedGenerativeEncoderViT(nn.Module):
 
         probs = self.out(input_embeddings)
         # use sigmoid to get the probability
-        probs = torch.sigmoid(probs).squeeze(-1)
+        if self.regression == 0:
+            probs = torch.sigmoid(probs).squeeze(-1)
 
         return probs
 
     def forward_loss(self, probs, train_tuple):
         postive = train_tuple[1]
         negative = train_tuple[2]
-        loss = self.criterion(probs, postive, negative)
+        if self.regression == 1:
+            loss = self.criterion(probs, train_tuple[0], postive, negative)
+        else:
+            loss = self.criterion(probs, postive, negative)
         return loss
 
     def calculate_acc(self, probs, train_tuple):
@@ -221,18 +291,18 @@ class MaskedGenerativeEncoderViT(nn.Module):
         return acc_pos, acc_neg
 
     def forward(self, train_tuple):
-        probs = self.forward_encoder(train_tuple[0])
+        probs = self.forward_encoder(train_tuple)
         loss = self.forward_loss(probs, train_tuple)
-        acc_pos, acc_neg = self.calculate_acc(probs, train_tuple)
-        return loss, acc_pos, acc_neg
+        acc = ((probs, train_tuple) if self.regression == 1 else self.calculate_acc(probs, train_tuple))
+        return loss, acc
 
 
-def ur_vit_base_patch16(grid_num=69, **kwargs):
+def ur_vit_base_patch16(grid_num=69, regression=1, **kwargs):
     print('ur', grid_num)
     model = MaskedGenerativeEncoderViT(
         patch_size=16, embed_dim=512, depth=6, num_heads=8,
         decoder_embed_dim=512, decoder_depth=6, decoder_num_heads=8,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), grid_num=grid_num, **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), grid_num=grid_num, regression=regression, **kwargs)
     return model
 
 
