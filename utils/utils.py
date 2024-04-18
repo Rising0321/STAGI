@@ -2,7 +2,7 @@ import json
 import numpy as np
 import torch
 
-from data.myDataset import myDataset
+from data.myDataset import myDataset, myDatasetRegression
 
 from sklearn.metrics import roc_auc_score, f1_score, accuracy_score, precision_score, recall_score
 
@@ -60,8 +60,8 @@ def output(now):
 
 
 # sample - positive - negative
-def build_data(data, files, bsz, gpu, train=1, regression=1):
-    res = myDataset(gpu, train, regression)
+def build_data(data, files, bsz, gpu, train=1):
+    res = myDataset(gpu, train)
 
     for item in data:
         # iterater rate from 0.2 to 1
@@ -103,6 +103,28 @@ def build_data(data, files, bsz, gpu, train=1, regression=1):
                                        shuffle=True)
 
 
+def build_dataRegression(data, files, bsz, gpu, train=1):
+    res = myDatasetRegression(gpu, train)
+
+    for item in data:
+        if train == 1:
+            res.append(item)
+        else:
+            for j in range(10):
+                while True:
+                    index = np.arrange(len(item))
+                    np.random.shuffle(index)
+                    input_index = index[:(0.7 * len(index)) // 1]
+                    if np.sum(item[input_index]) > 0:
+                        break
+                input_mask = torch.zeros(item)
+                input_mask[input_index] = 1
+                res.append((item, input_mask))
+
+    return torch.utils.data.DataLoader(res, batch_size=bsz,
+                                       shuffle=True)
+
+
 def build_train_data(files, batch_size, gpu, regression):
     print(len(files))
     rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
@@ -111,9 +133,14 @@ def build_train_data(files, batch_size, gpu, regression):
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
 
-    train_set = build_data(train_data, files, batch_size, gpu, train=1, regression=regression)
-    val_set = build_data(val_data, files, batch_size, gpu, train=0, regression=regression)
-    test_set = build_data(test_data, files, batch_size, gpu, train=0, regression=regression)
+    if regression == 1:
+        train_set = build_data(train_data, files, batch_size, gpu, train=1)
+        val_set = build_data(val_data, files, batch_size, gpu, train=0)
+        test_set = build_data(test_data, files, batch_size, gpu, train=0)
+    else:
+        train_set = build_dataRegression(train_data, files, batch_size, gpu, train=1)
+        val_set = build_dataRegression(val_data, files, batch_size, gpu, train=0)
+        test_set = build_dataRegression(test_data, files, batch_size, gpu, train=0)
 
     return train_set, val_set, test_set
 
@@ -141,16 +168,14 @@ def evaluation_regression(data, tuple):
 
     truth = []
     prediction = []
-
     for i in range(len(data)):
-        for j in range(len(data[i])):
-            for k in range(len(data[i][j])):
-                if tuple[i][j][k][1] == 1 or tuple[i][j][k][2] == 1:
-                    truth.append(data[i][j][k])
-                    prediction.append(tuple[i][j][k][0])
+        truth.extend(data[i].reshape(-1))
+        prediction.extend(tuple[i].reshape(-1))
 
     truth = np.array(truth)
     prediction = np.array(prediction)
+
+    print(truth.shape, prediction.shape)
 
     mae = np.mean(np.abs(truth - prediction))
     mse = np.mean((truth - prediction) ** 2)
@@ -168,7 +193,7 @@ class RegressionMetrices:
     def update(self, acc):
         item, input_tuple = acc
         self.data.append(item.detach().cpu().numpy())
-        self.tuple.append(input_tuple)
+        self.tuple.append(input_tuple[0].cpu().numpy())
 
     def output(self, phase, epoch):
         mae, mse, rmse, pcc = evaluation_regression(self.data, self.tuple)

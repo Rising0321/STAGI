@@ -148,19 +148,21 @@ class ContinuousValueEncoder(nn.Module):
         # 为-1的情况预定义一个编码向量
         self.special_encoding = nn.Parameter(torch.randn(output_dim))
         self.position_embeddings = nn.Embedding(max_position_embeddings, output_dim)
+        self.register_buffer("position_ids", torch.arange(max_position_embeddings).expand((1, -1)))
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, x):
         # 判断输入是否为-1
-        is_special = (x == -1).float().unsqueeze(1)  # 增加维度以适应广播
+        is_special = (x == -1).float().unsqueeze(-1)  # 增加维度以适应广播 B x L
         # 通过线性层对输入进行编码
-        x_encoded = self.linear(x)
+        x_encoded = self.linear(x.unsqueeze(-1))  # B x L x D
         # 使用特殊值的编码向量替换-1对应的编码
         x_encoded = torch.where(is_special == 1, self.special_encoding.expand_as(x_encoded), x_encoded)
 
         seq_length = x.shape[1]
         position_ids = self.position_ids[:, :seq_length]
         position_embeddings = self.position_embeddings(position_ids)
-        x_encoded = x_encoded + position_embeddings  # todo: delete this line
+        x_encoded = x_encoded + position_embeddings
 
         x_encoded = self.dropout(x_encoded)
         return x_encoded
@@ -218,7 +220,7 @@ class MaskedGenerativeEncoderViT(nn.Module):
         self.norm_pix_loss = norm_pix_loss
 
         if regression:
-            self.criterion = myLossRegression()
+            self.criterion = nn.MSELoss()
         else:
             self.criterion = myLoss()
 
@@ -274,11 +276,12 @@ class MaskedGenerativeEncoderViT(nn.Module):
         return probs
 
     def forward_loss(self, probs, train_tuple):
-        postive = train_tuple[1]
-        negative = train_tuple[2]
+        # print(probs.shape, train_tuple[0].shape)
         if self.regression == 1:
-            loss = self.criterion(probs, train_tuple[0], postive, negative)
+            loss = self.criterion(probs.squeeze(-1), train_tuple[0])
         else:
+            postive = train_tuple[1]
+            negative = train_tuple[2]
             loss = self.criterion(probs, postive, negative)
         return loss
 
