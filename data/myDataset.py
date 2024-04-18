@@ -22,16 +22,17 @@ class myDataset(Dataset):
         self.gpu = gpu
 
     def append(self, input):
+        # print(self.train)
         if self.train == 1 or self.train == 2:
             item, anchor_value = input
             self.data.append(item)
             self.anchor.append(anchor_value)
         else:
-            sample, postive, negative = input
+            item, sample, postive, negative = input
+            self.data.append(item)
             self.sample.append(sample)
             self.positive.append(postive)
             self.negative.append(negative)
-
     def __len__(self):
         if self.train == 1 or self.train == 2:
             return len(self.data)
@@ -59,7 +60,6 @@ class myDataset(Dataset):
             zero_postive[positive] = 1
             zero_negtive = torch.zeros(grid_num)
             zero_negtive[negtive] = 1
-
             return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
         elif self.train == 2:
             item = self.data[index]
@@ -82,4 +82,41 @@ class myDataset(Dataset):
             return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
 
         else:
-            return self.sample[index].to(self.gpu), self.positive[index].to(self.gpu), self.negative[index].to(self.gpu)
+            return self.sample[index].to(self.gpu), self.positive[index].to(self.gpu), \
+                    self.negative[index].to(self.gpu)
+
+class myDatasetRegression(Dataset):
+    def __init__(self, gpu, train=1):
+        self.train = train
+        # for training
+        self.data = []
+        # for testing
+        self.mask = []
+
+        self.gpu = gpu
+
+    def append(self, input):
+        if self.train == 1:
+            item = input
+            self.data.append(item)
+        else:
+            item, input_mask = input
+            self.data.append(item)
+            self.mask.append(input_mask)
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        if self.train == 1:
+            item = self.data[index]
+            while True:
+                index = np.arange(len(item))
+                np.random.shuffle(index)
+                input_index = index[:int(0.7 * len(index))]
+                if np.sum(item[input_index]) > 0:
+                    break
+            input_mask = torch.zeros(len(item))
+            input_mask[input_index] = 1
+            return torch.FloatTensor(item).to(self.gpu), input_mask.to(self.gpu)
+        else:
+            return self.data[index].to(self.gpu), self.mask[index].to(self.gpu)
