@@ -6,7 +6,7 @@ import torch.optim as optim
 from tqdm import tqdm
 
 from model.modelsAGI import ur_vit_base_patch16
-from utils.utils import load_config, load_files, build_train_data, init_seed, init_logging, output
+from utils.utils import load_config, load_files, build_train_data, init_seed, init_logging, output, evaluation
 from utils.utils import ClassificationMetrices, RegressionMetrices
 
 
@@ -98,6 +98,9 @@ def main(args):
 
     train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu)
 
+    if train == 2:
+        baseline(baseline_data, test_data, config['N'])
+
     model = ur_vit_base_patch16(config['N'], args.regression).to(args.gpu)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -107,8 +110,6 @@ def main(args):
     best_eval_metrices = -1
     best_test_metrices = -1
     cnt = 0
-
-    baseline(baseline_data, test_data,config['N'])
 
     for epoch in range(1, args.epochs):
         train(model, train_data, optimizer, scheduler, epoch, args.regression, "train")

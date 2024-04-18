@@ -137,12 +137,12 @@ def build_train_data(files, batch_size, gpu, regression):
         train_set = build_data(train_data, files, batch_size, gpu, train=1)
         val_set = build_data(val_data, files, batch_size, gpu, train=0)
         test_set = build_data(test_data, files, batch_size, gpu, train=0)
+        baseline_set = ""
     else:
         train_set = build_dataRegression(train_data, files, batch_size, gpu, train=1)
         val_set = build_dataRegression(val_data, files, batch_size, gpu, train=0)
         test_set = build_dataRegression(test_data, files, batch_size, gpu, train=0)
-
-    baseline_set = build_data(train_data, files, batch_size, gpu, train=2)
+        baseline_set = build_data(train_data, files, batch_size, gpu, train=2)
 
     return train_set, val_set, test_set, baseline_set
 
