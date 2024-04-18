@@ -22,7 +22,7 @@ class myDataset(Dataset):
         self.gpu = gpu
 
     def append(self, input):
-        if self.train == 1:
+        if self.train == 1 or self.train == 2:
             item, anchor_value = input
             self.data.append(item)
             self.anchor.append(anchor_value)
@@ -33,7 +33,7 @@ class myDataset(Dataset):
             self.negative.append(negative)
 
     def __len__(self):
-        if self.train == 1:
+        if self.train == 1 or self.train == 2:
             return len(self.data)
         else:
             return len(self.sample)
@@ -61,5 +61,25 @@ class myDataset(Dataset):
             zero_negtive[negtive] = 1
 
             return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
+        elif self.train == 2:
+            item = self.data[index]
+            anchor_value = self.anchor[index]
+
+            positive = np.where(item >= anchor_value)[0]
+            np.random.shuffle(positive)  # 是不是不用打乱了?
+            negtive = np.where(item < anchor_value)[0]
+            np.random.shuffle(negtive)
+            # negtive = negtive[:min(len(negtive), len(positive))] # 这应该不用裁剪
+
+            grid_num = len(item)
+            zero_sample = torch.zeros(grid_num)
+            zero_sample[positive] = 1
+            zero_postive = torch.zeros(grid_num)
+            zero_postive[positive] = 1
+            zero_negtive = torch.zeros(grid_num)
+            zero_negtive[negtive] = 1
+            # print(torch.allclose(zero_sample,zero_postive))
+            return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
+
         else:
             return self.sample[index].to(self.gpu), self.positive[index].to(self.gpu), self.negative[index].to(self.gpu)
