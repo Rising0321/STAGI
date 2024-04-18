@@ -112,14 +112,14 @@ def build_dataRegression(data, files, bsz, gpu, train=1):
         else:
             for j in range(10):
                 while True:
-                    index = np.arrange(len(item))
+                    index = np.arange(len(item))
                     np.random.shuffle(index)
-                    input_index = index[:(0.7 * len(index)) // 1]
+                    input_index = index[:int(0.7 * len(index))]
                     if np.sum(item[input_index]) > 0:
                         break
-                input_mask = torch.zeros(item)
+                input_mask = torch.zeros(len(item))
                 input_mask[input_index] = 1
-                res.append((item, input_mask))
+                res.append((torch.FloatTensor(item), input_mask))
 
     return torch.utils.data.DataLoader(res, batch_size=bsz,
                                        shuffle=True)
@@ -133,16 +133,16 @@ def build_train_data(files, batch_size, gpu, regression):
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
 
-    if regression == 1:
+    if regression == 0:
         train_set = build_data(train_data, files, batch_size, gpu, train=1)
         val_set = build_data(val_data, files, batch_size, gpu, train=0)
         test_set = build_data(test_data, files, batch_size, gpu, train=0)
-        baseline_set = ""
+        baseline_set = build_data(train_data, files, batch_size, gpu, train=2)
     else:
         train_set = build_dataRegression(train_data, files, batch_size, gpu, train=1)
         val_set = build_dataRegression(val_data, files, batch_size, gpu, train=0)
         test_set = build_dataRegression(test_data, files, batch_size, gpu, train=0)
-        baseline_set = build_data(train_data, files, batch_size, gpu, train=2)
+        baseline_set = ""
 
     return train_set, val_set, test_set, baseline_set
 

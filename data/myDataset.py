@@ -22,6 +22,7 @@ class myDataset(Dataset):
         self.gpu = gpu
 
     def append(self, input):
+        # print(self.train)
         if self.train == 1 or self.train == 2:
             item, anchor_value = input
             self.data.append(item)
@@ -109,13 +110,13 @@ class myDatasetRegression(Dataset):
         if self.train == 1:
             item = self.data[index]
             while True:
-                index = np.arrange(len(item))
+                index = np.arange(len(item))
                 np.random.shuffle(index)
-                input_index = index[:(0.7 * len(index)) // 1]
+                input_index = index[:int(0.7 * len(index))]
                 if np.sum(item[input_index]) > 0:
                     break
-            input_mask = torch.zeros(item)
+            input_mask = torch.zeros(len(item))
             input_mask[input_index] = 1
-            return item.to(self.gpu), input_mask.to(self.gpu)
+            return torch.FloatTensor(item).to(self.gpu), input_mask.to(self.gpu)
         else:
             return self.data[index].to(self.gpu), self.mask[index].to(self.gpu)

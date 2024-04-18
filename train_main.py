@@ -96,10 +96,11 @@ def main(args):
 
     files = load_files(config['file_path'])
 
-    train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu)
+    train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu, args.regression)
 
-    if train == 2:
+    if args.model == "baseline":
         baseline(baseline_data, test_data, config['N'])
+        exit(0)
 
     model = ur_vit_base_patch16(config['N'], args.regression).to(args.gpu)
 
@@ -138,7 +139,7 @@ if __name__ == "__main__":
     parser.add_argument('--data',
                         type=str,
                         help='Dataset name (eg. Manhattan, Beijing)',
-                        default='Beijing')
+                        default='Manhattan')
 
     parser.add_argument('--batch_size',
                         type=int,
@@ -169,6 +170,11 @@ if __name__ == "__main__":
                         type=int,
                         help='Patience',
                         default=20)
+
+    parser.add_argument('--model',
+                        type=str,
+                        help='model type',
+                        default="agi")
 
     parser.add_argument('--model_name',
                         type=str,
