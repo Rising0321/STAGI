@@ -50,6 +50,43 @@ def test(model, test_data, epoch, regression, phase):
     return metrices
 
 
+def baseline(baseline_data, test_data, N):
+    cnt_one = torch.zeros(N)
+    cnt_zero = torch.zeros(N)
+    for i, data in enumerate(baseline_data):
+        # data shape is (3,32,1020)
+        pos_idx = np.where(data[1] == 1)[1]
+        neg_idx = np.where(data[2] == 1)[1]
+        for idx in pos_idx:
+            cnt_one[idx] += 1
+        for idx in neg_idx:
+            cnt_zero[idx] += 1
+
+    print(cnt_one)
+    print(cnt_zero)
+
+    result = cnt_one > cnt_zero
+    result_cnt_one = torch.where(result * cnt_one != 0, torch.tensor(1), torch.tensor(0))
+
+    print(torch.sum(result_cnt_one))
+    sum_pos = (0, 0)
+    sum_neg = (0, 0)
+    for i, eval_tuple in enumerate(test_data):
+        sample = eval_tuple[0]  # shape [64 x 1020]
+        positive = eval_tuple[1]
+        negative = eval_tuple[2]
+
+        acc_pos = (int(torch.sum(result_cnt_one * positive)), int(torch.sum(positive)))
+        acc_neg = (int(torch.sum((1 - result_cnt_one) * negative)), int(torch.sum(negative)))
+
+        sum_pos = (sum_pos[0] + acc_pos[0], sum_pos[1] + acc_pos[1])
+        sum_neg = (sum_neg[0] + acc_neg[0], sum_neg[1] + acc_neg[1])
+    roc_auc, f1, accuracy, precision, recall = evaluation(sum_pos, sum_neg)
+    output(f"test: Acc Pos: {sum_pos[0], sum_pos[1]}, Acc Neg: {sum_neg[0], sum_neg[1]}")
+    output(
+        f"roc_auc: {roc_auc}, f1: {f1}, accuracy: {accuracy}, precision: {precision}, recall: {recall}")
+
+
 def main(args):
     init_seed(args.seed)
 
@@ -59,7 +96,7 @@ def main(args):
 
     files = load_files(config['file_path'])
 
-    train_data, val_data, test_data = build_train_data(files, args.batch_size, args.gpu, args.regression)
+    train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu)
 
     model = ur_vit_base_patch16(config['N'], args.regression).to(args.gpu)
 
@@ -70,6 +107,8 @@ def main(args):
     best_eval_metrices = -1
     best_test_metrices = -1
     cnt = 0
+
+    baseline(baseline_data, test_data,config['N'])
 
     for epoch in range(1, args.epochs):
         train(model, train_data, optimizer, scheduler, epoch, args.regression, "train")
@@ -118,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu',
                         type=str,
                         help='GPU',
-                        default="cuda:3")
+                        default="cpu")
 
     parser.add_argument('--seed',
                         type=int,
