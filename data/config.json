@@ -1,7 +1,12 @@
 {
+  "ManhattanPretrain": {
+    "N": 69,
+    "matrix_path": "data/regression_data/flow_matrix.npy",
+    "file_path": "data/regression_data"
+  },
   "Manhattan": {
     "N": 69,
-    "matrix_path": "data/graph/od_matrix.npy",
+    "matrix_path": "data/regression_data/flow_matrix.npy",
     "file_path": "data/regression_data"
   },
   "Beijing": {
