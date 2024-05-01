@@ -42,6 +42,7 @@ class myDataset(Dataset):
     def __getitem__(self, index):
         if self.train == 1:
             item = self.data[index]
+            # print(len(item))
             anchor_value = self.anchor[index]
 
             positive = np.where(item >= anchor_value)[0]

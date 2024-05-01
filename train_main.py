@@ -55,8 +55,8 @@ def baseline(baseline_data, test_data, N):
     cnt_zero = torch.zeros(N)
     for i, data in enumerate(baseline_data):
         # data shape is (3,32,1020)
-        pos_idx = np.where(data[1] == 1)[1]
-        neg_idx = np.where(data[2] == 1)[1]
+        pos_idx = np.where(data[1].cpu() == 1)[1]
+        neg_idx = np.where(data[2].cpu() == 1)[1]
         for idx in pos_idx:
             cnt_one[idx] += 1
         for idx in neg_idx:
@@ -66,15 +66,15 @@ def baseline(baseline_data, test_data, N):
     print(cnt_zero)
 
     result = cnt_one > cnt_zero
-    result_cnt_one = torch.where(result * cnt_one != 0, torch.tensor(1), torch.tensor(0))
+    result_cnt_one = torch.where(result * cnt_one != 0, torch.tensor(1), torch.tensor(0)).cuda()
 
     print(torch.sum(result_cnt_one))
     sum_pos = (0, 0)
     sum_neg = (0, 0)
     for i, eval_tuple in enumerate(test_data):
         sample = eval_tuple[0]  # shape [64 x 1020]
-        positive = eval_tuple[1]
-        negative = eval_tuple[2]
+        positive = eval_tuple[1].cuda()
+        negative = eval_tuple[2].cuda()
 
         acc_pos = (int(torch.sum(result_cnt_one * positive)), int(torch.sum(positive)))
         acc_neg = (int(torch.sum((1 - result_cnt_one) * negative)), int(torch.sum(negative)))
@@ -94,7 +94,7 @@ def main(args):
 
     config = load_config(args.data)
 
-    files = load_files(config['file_path'])
+    files = load_files(args.pretrain, config)
 
     train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu, args.regression)
 
@@ -103,6 +103,9 @@ def main(args):
         exit(0)
 
     model = ur_vit_base_patch16(config['N'], args.regression).to(args.gpu)
+
+    if args.load_path != "":
+        model.load_state_dict(torch.load(args.load_path))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -115,22 +118,27 @@ def main(args):
     for epoch in range(1, args.epochs):
         train(model, train_data, optimizer, scheduler, epoch, args.regression, "train")
 
-        if epoch % 10 == 0:
+        eval_metrices = test(model, val_data, epoch, args.regression, "val")
 
-            eval_metrices = test(model, val_data, epoch, args.regression, "val")
+        test_metrices = test(model, test_data, epoch, args.regression, "test")
 
-            test_metrices = test(model, test_data, epoch, args.regression, "test")
+        if best_eval_metrices == -1 or eval_metrices[0] > best_eval_metrices[0]:
+            best_eval_metrices = eval_metrices
+            best_test_metrices = test_metrices
+            cnt = 0
+            torch.save(model.state_dict(), f"./checkpoints/{args.data}/{args.model}.pth")
+        else:
+            cnt += 1
+            if cnt == args.patience:
+                output("Early stopping")
+                output(f"Best Metrices: {best_test_metrices}")
+                break
 
-            if best_eval_metrices == -1 or eval_metrices[0] > best_eval_metrices[0]:
-                best_eval_metrices = eval_metrices
-                best_test_metrices = test_metrices
-                cnt = 0
-            else:
-                cnt += 1
-                if cnt == args.patience:
-                    output("Early stopping")
-                    output(f"Best Metrices: {best_test_metrices}")
-                    break
+        if epoch % args.test_epochs == 0:
+            torch.save(model.state_dict(), f"./checkpoints/{args.data}/{args.model}-{epoch}.pth")
+
+    # save the model at "./checkpoints/args.data/model_name-final.pth"
+    torch.save(model.state_dict(), f"./checkpoints/{args.data}/{args.model}-final.pth")
 
 
 if __name__ == "__main__":
@@ -159,7 +167,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu',
                         type=str,
                         help='GPU',
-                        default="cpu")
+                        default="cuda:0")
 
     parser.add_argument('--seed',
                         type=int,
@@ -181,10 +189,30 @@ if __name__ == "__main__":
                         help='name of the model',
                         default="test")
 
+    parser.add_argument('--load_path',
+                        type=str,
+                        help='load_path',
+                        default="/home/zhangrx/STAGI/checkpoints/Manhattan/agi.pth")
+
     parser.add_argument('--regression',
                         type=int,
                         help='regression or classification',
-                        default=1)
+                        default=0)
+
+    parser.add_argument('--test_epochs',
+                        type=int,
+                        help='test_epochs',
+                        default=10)
+
+    parser.add_argument('--save_epochs',
+                        type=int,
+                        help='save_epochs',
+                        default=10)
+
+    parser.add_argument('--pretrain',
+                        type=int,
+                        help='pretrain',
+                        default=0)
 
     args = parser.parse_args()
 

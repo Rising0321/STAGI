@@ -260,7 +260,7 @@ class MaskedGenerativeEncoderViT(nn.Module):
             masks = torch.ones((b, self.codebook_size - 1), device=x.device, dtype=torch.long) * self.mask_token_label
             indices = torch.arange(0, self.codebook_size - 1, device=x.device, dtype=torch.long) \
                 .unsqueeze(0).expand(b, -1)
-            # print(x.shape, masks.shape)
+            # print(x.shape, masks.shape, indices.shape)
             masks[x.bool()] = indices[x.bool()]
             input_embeddings = self.token_emb(masks)
 

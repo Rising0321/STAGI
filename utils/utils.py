@@ -19,13 +19,20 @@ def load_config(dataset):
     return config
 
 
-def load_files(walk_path):
-    print(walk_path)
+def load_files(pretrain, config):
+    if pretrain == 1:
+        # datas = []
+        datas = np.load(config['matrix_path'])
+        # datas.append(now)
+        return datas
+
+    walk_path = config['file_path']
     import os
     res = []
     for root, nowdir, nowfiles in os.walk(walk_path):
         for file in nowfiles:
-            res.append(root + "/" + file)
+            if file != "flow_matrix.npy":
+                res.append(root + "/" + file)
 
     datas = []
     for item in res:
@@ -44,6 +51,14 @@ def init_seed(seed):
 
 
 def init_logging(args):
+    log_dir = os.path.join("./log", args.data)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    model_dir = os.path.join("./checkpoints", args.data)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
     logging.basicConfig(level=logging.INFO)
     log_dir = os.path.join("./log", args.data)
     if not os.path.exists(log_dir):
@@ -126,7 +141,10 @@ def build_dataRegression(data, files, bsz, gpu, train=1):
 
 
 def build_train_data(files, batch_size, gpu, regression):
-    print(len(files))
+    if type(files) != list:
+        files = files.reshape(-1, files.shape[-1])
+    # print(len(files))
+    # print(files.shape)
     rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
 
     train_data = files[:int(len(files) * rate_train)]
@@ -177,7 +195,7 @@ def evaluation_regression(data, tuple):
     truth = np.array(truth)
     prediction = np.array(prediction)
 
-    print(truth.shape, prediction.shape)
+    # print(truth.shape, prediction.shape)
 
     mae = np.mean(np.abs(truth - prediction))
     mse = np.mean((truth - prediction) ** 2)
