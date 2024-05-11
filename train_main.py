@@ -6,6 +6,7 @@ import torch.optim as optim
 from tqdm import tqdm
 
 from model.modelsAGI import ur_vit_base_patch16
+from model.modelsSVM import modelsSVM
 from utils.utils import load_config, load_files, build_train_data, init_seed, init_logging, output, evaluation
 from utils.utils import ClassificationMetrices, RegressionMetrices
 
@@ -81,6 +82,7 @@ def baseline(baseline_data, test_data, N):
 
         sum_pos = (sum_pos[0] + acc_pos[0], sum_pos[1] + acc_pos[1])
         sum_neg = (sum_neg[0] + acc_neg[0], sum_neg[1] + acc_neg[1])
+
     roc_auc, f1, accuracy, precision, recall = evaluation(sum_pos, sum_neg)
     output(f"test: Acc Pos: {sum_pos[0], sum_pos[1]}, Acc Neg: {sum_neg[0], sum_neg[1]}")
     output(
@@ -100,6 +102,10 @@ def main(args):
 
     if args.model == "baseline":
         baseline(baseline_data, test_data, config['N'])
+        exit(0)
+    elif args.model == "SVM":
+        model = modelsSVM(config)
+        model.run(test_data)
         exit(0)
 
     model = ur_vit_base_patch16(config['N'], args.regression).to(args.gpu)
@@ -182,7 +188,7 @@ if __name__ == "__main__":
     parser.add_argument('--model',
                         type=str,
                         help='model type',
-                        default="agi")
+                        default="SVM")
 
     parser.add_argument('--model_name',
                         type=str,
