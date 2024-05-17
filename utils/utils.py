@@ -8,6 +8,7 @@ from sklearn.metrics import roc_auc_score, f1_score, accuracy_score, precision_s
 
 import logging
 import os
+import random
 
 
 def load_config(dataset):
@@ -74,11 +75,33 @@ def output(now):
     logging.info(now)
 
 
+def build_samples(item, anchor_value):
+    positive = np.where(item >= anchor_value)[0]
+    negtive = np.where(item < anchor_value)[0]
+
+    np.random.shuffle(positive)
+    np.random.shuffle(negtive)
+
+    pos_sample = positive[:int((len(positive) * 0.5) // 1)]
+    positive = positive[int((len(positive) * 0.5) // 1):]
+
+    neg_sample = negtive[:int((len(negtive) * 0.5) // 1)]
+    negtive = negtive[int((len(negtive) * 0.5) // 1):]
+
+    sam_len = min(len(pos_sample), len(neg_sample))
+    pr_len = min(len(pos_sample), len(negtive))
+
+    if sam_len == 0 or pr_len == 0:
+        return -1
+
+    return 1
+
+
 # sample - positive - negative
 def build_data(data, files, bsz, gpu, train=1):
     res = myDataset(gpu, train)
-
-    for item in data:
+    from tqdm import tqdm
+    for item in tqdm(data):
         # iterater rate from 0.2 to 1
         for rate in range(5, 95, 5):
             # chosse the top k the largest value from the numpy array and return the boolean array
@@ -87,32 +110,12 @@ def build_data(data, files, bsz, gpu, train=1):
             if anchor_value == 0:
                 continue
 
-            if len(np.where(item >= anchor_value)[0]) <= 1:
+            samples = build_samples(item, anchor_value)
+
+            if samples == -1:
                 continue
 
-            if train == 1 or train == 2:
-                res.append((item, anchor_value))
-
-            else:
-                for j in range(10):
-                    positive = np.where(item >= anchor_value)[0]
-                    np.random.shuffle(positive)
-                    sample = positive[:int((len(positive) * 0.7) // 1)]
-                    positive = positive[int((len(positive) * 0.7) // 1):]
-
-                    negtive = np.where(item < anchor_value)[0]
-                    np.random.shuffle(negtive)
-                    negtive = negtive[:min(len(negtive), len(positive))]
-
-                    grid_num = len(item)
-                    zero_sample = torch.zeros(grid_num)
-                    zero_sample[sample] = 1
-                    zero_postive = torch.zeros(grid_num)
-                    zero_postive[positive] = 1
-                    zero_negtive = torch.zeros(grid_num)
-                    zero_negtive[negtive] = 1
-
-                    res.append((item, zero_sample, zero_postive, zero_negtive))
+            res.append((item, anchor_value))
 
     return torch.utils.data.DataLoader(res, batch_size=bsz,
                                        shuffle=True)
@@ -143,24 +146,42 @@ def build_dataRegression(data, files, bsz, gpu, train=1):
 def build_train_data(files, batch_size, gpu, regression):
     if type(files) != list:
         files = files.reshape(-1, files.shape[-1])
-    # print(len(files))
-    # print(files.shape)
+
+    np.random.shuffle(files)
+
     rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
 
     train_data = files[:int(len(files) * rate_train)]
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
 
-    if regression == 0:
-        train_set = build_data(train_data, files, batch_size, gpu, train=1)
-        val_set = build_data(val_data, files, batch_size, gpu, train=0)
-        test_set = build_data(test_data, files, batch_size, gpu, train=0)
-        baseline_set = build_data(train_data, files, batch_size, gpu, train=2)
-    else:
-        train_set = build_dataRegression(train_data, files, batch_size, gpu, train=1)
-        val_set = build_dataRegression(val_data, files, batch_size, gpu, train=0)
-        test_set = build_dataRegression(test_data, files, batch_size, gpu, train=0)
-        baseline_set = ""
+    train_set = build_data(train_data, files, batch_size, gpu, train=1)
+    val_set = build_data(val_data, files, batch_size, gpu, train=0)
+    test_set = build_data(test_data, files, batch_size, gpu, train=0)
+    baseline_set = ""
+
+    return train_set, val_set, test_set, baseline_set
+
+
+def build_train_data_test(files, batch_size, gpu, config):
+
+    datas = np.load(config['matrix_path'])
+
+    # print(datas.shape)
+    datas = datas.reshape(-1, datas.shape[-1])
+
+    np.random.shuffle(files)
+
+    rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
+
+    train_data = files[:int(len(files) * rate_train)]
+    val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
+    test_data = files[int(len(files) * (rate_train + rate_val)):]
+
+    train_set = build_data(datas, files, batch_size, gpu, train=1)
+    val_set = build_data(val_data, files, batch_size, gpu, train=0)
+    test_set = build_data(test_data, files, batch_size, gpu, train=0)
+    baseline_set = ""
 
     return train_set, val_set, test_set, baseline_set
 

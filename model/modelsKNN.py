@@ -1,8 +1,8 @@
 import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import OneClassSVM, SVC
 
 from utils.utils import ClassificationMetrices
-
 
 def combine_datas(config):
     walk_path = config['file_path']
@@ -23,15 +23,12 @@ def combine_datas(config):
     print(datas.shape)
     return datas
 
-
-class modelsSVM:
+class modelsKNN:
     def __init__(self, config):
         datas = np.load(config['matrix_path'])
         datas = datas.reshape(-1, datas.shape[2])
-        self.feature = datas.transpose()
-        print(self.feature.shape)
-        self.feature = np.concatenate([self.feature, combine_datas(config)], axis=1)
-        # print(self.feature.shape)
+        self.feature = datas.transpose(0, 1)
+        self.feature = combine_datas(config)
 
     def run(self, test_files):
         metrices = ClassificationMetrices()
@@ -47,7 +44,7 @@ class modelsSVM:
                 sample_neg = sample_neg_list[i].cpu().numpy()
                 positive = positive_list[i].cpu().numpy()
                 negative = negative_list[i].cpu().numpy()
-                model = SVC(random_state=1234, kernel="rbf")
+                model = KNeighborsClassifier(n_neighbors=1)
 
                 input = []
                 label = []
@@ -67,7 +64,6 @@ class modelsSVM:
                         if model.predict(now) == 1:
                             acc_pos[0] += 1
                         acc_pos[1] += 1
-
                 for j in range(len(negative)):
                     if negative[j] == 1:
                         now = self.feature[j].reshape(1, -1)

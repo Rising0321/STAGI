@@ -6,6 +6,47 @@ import numpy as np
 from tqdm import tqdm
 
 from torchvision import transforms
+import random
+
+
+def build_samples(item, anchor_value):
+    positive = np.where(item >= anchor_value)[0]
+    negtive = np.where(item < anchor_value)[0]
+
+    np.random.shuffle(positive)
+    np.random.shuffle(negtive)
+
+    pos_sample = positive[:int((len(positive) * 0.5) // 1)]
+    positive = positive[int((len(positive) * 0.5) // 1):]
+
+    neg_sample = negtive[:int((len(negtive) * 0.5) // 1)]
+    negtive = negtive[int((len(negtive) * 0.5) // 1):]
+
+    sam_len = min(len(pos_sample), len(neg_sample))
+    pr_len = min(len(pos_sample), len(negtive))
+
+    if sam_len == 0 or pr_len == 0:
+        return -1
+
+    pos_sample = pos_sample[:sam_len]
+    neg_sample = neg_sample[:sam_len]
+    positive = positive[:pr_len]
+    negtive = negtive[:pr_len]
+
+    grid_num = len(item)
+    zero_pos_sample = torch.zeros(grid_num)
+    zero_pos_sample[pos_sample] = 1
+    zero_neg_sample = torch.zeros(grid_num)
+    zero_neg_sample[neg_sample] = 1
+    zero_postive = torch.zeros(grid_num)
+    zero_postive[positive] = 1
+    zero_negtive = torch.zeros(grid_num)
+    zero_negtive[negtive] = 1
+
+    if random.random() < 1:
+        return zero_pos_sample, zero_neg_sample, zero_postive, zero_negtive
+    else:
+        return zero_neg_sample, zero_pos_sample, zero_negtive, zero_postive
 
 
 class myDataset(Dataset):
@@ -14,8 +55,10 @@ class myDataset(Dataset):
         # for training
         self.data = []
         self.anchor = []
+
         # for testing
-        self.sample = []
+        self.sample_pos = []
+        self.sample_neg = []
         self.positive = []
         self.negative = []
 
@@ -23,68 +66,36 @@ class myDataset(Dataset):
 
     def append(self, input):
         # print(self.train)
-        if self.train == 1 or self.train == 2:
-            item, anchor_value = input
+        item, anchor_value = input
+
+        if self.train == 1:
             self.data.append(item)
             self.anchor.append(anchor_value)
         else:
-            item, sample, postive, negative = input
-            self.data.append(item)
-            self.sample.append(sample)
-            self.positive.append(postive)
-            self.negative.append(negative)
+            for j in range(10):
+                samples = build_samples(item, anchor_value)
+                sample_pos, sample_neg, positive, negative = samples
+                self.sample_pos.append(sample_pos)
+                self.sample_neg.append(sample_neg)
+                self.positive.append(positive)
+                self.negative.append(negative)
+
     def __len__(self):
-        if self.train == 1 or self.train == 2:
+        if self.train == 1:
             return len(self.data)
         else:
-            return len(self.sample)
+            return len(self.sample_neg)
 
     def __getitem__(self, index):
         if self.train == 1:
-            item = self.data[index]
-            # print(len(item))
-            anchor_value = self.anchor[index]
-
-            positive = np.where(item >= anchor_value)[0]
-            np.random.shuffle(positive)
-            sample = positive[:int((len(positive) * 0.7) // 1)]
-            positive = positive[int((len(positive) * 0.7) // 1):]
-
-            negtive = np.where(item < anchor_value)[0]
-            np.random.shuffle(negtive)
-            negtive = negtive[:min(len(negtive), len(positive))]
-
-            grid_num = len(item)
-            zero_sample = torch.zeros(grid_num)
-            zero_sample[sample] = 1
-            zero_postive = torch.zeros(grid_num)
-            zero_postive[positive] = 1
-            zero_negtive = torch.zeros(grid_num)
-            zero_negtive[negtive] = 1
-            return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
-        elif self.train == 2:
-            item = self.data[index]
-            anchor_value = self.anchor[index]
-
-            positive = np.where(item >= anchor_value)[0]
-            np.random.shuffle(positive)  # 是不是不用打乱了?
-            negtive = np.where(item < anchor_value)[0]
-            np.random.shuffle(negtive)
-            # negtive = negtive[:min(len(negtive), len(positive))] # 这应该不用裁剪
-
-            grid_num = len(item)
-            zero_sample = torch.zeros(grid_num)
-            zero_sample[positive] = 1
-            zero_postive = torch.zeros(grid_num)
-            zero_postive[positive] = 1
-            zero_negtive = torch.zeros(grid_num)
-            zero_negtive[negtive] = 1
-            # print(torch.allclose(zero_sample,zero_postive))
-            return zero_sample.to(self.gpu), zero_postive.to(self.gpu), zero_negtive.to(self.gpu)
-
+            samples = build_samples(self.data[index], self.anchor[index])
+            sample_pos, sample_neg, positive, negative = samples
+            return sample_pos.to(self.gpu), sample_neg.to(self.gpu), \
+                positive.to(self.gpu), negative.to(self.gpu)
         else:
-            return self.sample[index].to(self.gpu), self.positive[index].to(self.gpu), \
-                    self.negative[index].to(self.gpu)
+            return self.sample_pos[index].to(self.gpu), self.sample_neg[index].to(self.gpu), \
+                self.positive[index].to(self.gpu), self.negative[index].to(self.gpu)
+
 
 class myDatasetRegression(Dataset):
     def __init__(self, gpu, train=1):
@@ -104,6 +115,7 @@ class myDatasetRegression(Dataset):
             item, input_mask = input
             self.data.append(item)
             self.mask.append(input_mask)
+
     def __len__(self):
         return len(self.data)
 
