@@ -187,11 +187,10 @@ class MaskedGenerativeEncoderViT(nn.Module):
 
         # --------------------------------------------------------------------------
         print("grid_num", grid_num)
-        self.codebook_size = grid_num + 1
+        self.codebook_size = grid_num * 2 + 1
         self.max_len = grid_num
 
         vocab_size = self.codebook_size
-        self.fake_class_label = self.codebook_size - 1
         self.mask_token_label = vocab_size - 1
 
         if regression == 1:
@@ -246,22 +245,27 @@ class MaskedGenerativeEncoderViT(nn.Module):
 
     def forward_encoder(self, train_tuple):
         # tokenization
-        x = train_tuple[0]
+        pos_sam = train_tuple[0]
+        neg_sam = train_tuple[1]
         # 69 69 69 69 4 69 69 7 69 69 69
-        b, c = x.shape
+        b, c = pos_sam.shape
 
         # bert embedding
         if self.regression == 1:
-            masks = torch.ones((b, self.codebook_size - 1), device=x.device, dtype=torch.float) * -1
+            masks = torch.ones((b, self.codebook_size - 1), device=pos_sam.device, dtype=torch.float) * -1
             masks = torch.where(train_tuple[1] == 1, masks, train_tuple[0])
 
             input_embeddings = self.token_emb(masks)
         else:
-            masks = torch.ones((b, self.codebook_size - 1), device=x.device, dtype=torch.long) * self.mask_token_label
-            indices = torch.arange(0, self.codebook_size - 1, device=x.device, dtype=torch.long) \
+            masks = torch.ones((b, self.codebook_size // 2), device=pos_sam.device,
+                               dtype=torch.long) * self.mask_token_label
+            pos_indices = torch.arange(0, self.codebook_size // 2, device=pos_sam.device, dtype=torch.long) \
                 .unsqueeze(0).expand(b, -1)
+            neg_indices = torch.arange(self.codebook_size // 2, self.codebook_size - 1, device=pos_sam.device,
+                                       dtype=torch.long).unsqueeze(0).expand(b, -1)
             # print(x.shape, masks.shape, indices.shape)
-            masks[x.bool()] = indices[x.bool()]
+            masks[pos_sam.bool()] = pos_indices[pos_sam.bool()]
+            masks[neg_sam.bool()] = neg_indices[neg_sam.bool()]
             input_embeddings = self.token_emb(masks)
 
         for blk in self.blocks:
@@ -280,15 +284,15 @@ class MaskedGenerativeEncoderViT(nn.Module):
         if self.regression == 1:
             loss = self.criterion(probs.squeeze(-1), train_tuple[0])
         else:
-            postive = train_tuple[1]
-            negative = train_tuple[2]
+            postive = train_tuple[2]
+            negative = train_tuple[3]
             loss = self.criterion(probs, postive, negative)
         return loss
 
     def calculate_acc(self, probs, train_tuple):
         # print(probs)
-        postive = train_tuple[1]
-        negative = train_tuple[2]
+        postive = train_tuple[2]
+        negative = train_tuple[3]
         acc_pos = (int(torch.sum((probs > 0.5) * postive)), int(torch.sum(postive)))
         acc_neg = (int(torch.sum(((1 - probs) > 0.5) * negative)), int(torch.sum(negative)))
         return acc_pos, acc_neg
