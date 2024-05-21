@@ -9,7 +9,7 @@ from torchvision import transforms
 import random
 
 
-def build_samples(item, anchor_value):
+def build_samples(item, anchor_value, shots):
     positive = np.where(item >= anchor_value)[0]
     negtive = np.where(item < anchor_value)[0]
 
@@ -23,15 +23,24 @@ def build_samples(item, anchor_value):
     negtive = negtive[int((len(negtive) * 0.5) // 1):]
 
     sam_len = min(len(pos_sample), len(neg_sample))
-    pr_len = min(len(pos_sample), len(negtive))
+    pr_len = min(len(positive), len(negtive))
 
     if sam_len == 0 or pr_len == 0:
         return -1
 
-    pos_sample = pos_sample[:sam_len]
-    neg_sample = neg_sample[:sam_len]
-    positive = positive[:pr_len]
-    negtive = negtive[:pr_len]
+    if shots != 50 and sam_len < 10:
+        return -1
+
+    if shots == 50:
+        pos_sample = pos_sample[:sam_len]
+        neg_sample = neg_sample[:sam_len]
+        positive = positive[:pr_len]
+        negtive = negtive[:pr_len]
+    else:
+        pos_sample = pos_sample[:shots]
+        neg_sample = neg_sample[:shots]
+        positive = positive[:pr_len]
+        negtive = negtive[:pr_len]
 
     grid_num = len(item)
     zero_pos_sample = torch.zeros(grid_num)
@@ -43,14 +52,11 @@ def build_samples(item, anchor_value):
     zero_negtive = torch.zeros(grid_num)
     zero_negtive[negtive] = 1
 
-    if random.random() < 1:
-        return zero_pos_sample, zero_neg_sample, zero_postive, zero_negtive
-    else:
-        return zero_neg_sample, zero_pos_sample, zero_negtive, zero_postive
+    return zero_pos_sample, zero_neg_sample, zero_postive, zero_negtive
 
 
 class myDataset(Dataset):
-    def __init__(self, gpu, train=1):
+    def __init__(self, gpu, shots, train=1):
         self.train = train
         # for training
         self.data = []
@@ -63,6 +69,7 @@ class myDataset(Dataset):
         self.negative = []
 
         self.gpu = gpu
+        self.shots = shots
 
     def append(self, input):
         # print(self.train)
@@ -73,7 +80,7 @@ class myDataset(Dataset):
             self.anchor.append(anchor_value)
         else:
             for j in range(10):
-                samples = build_samples(item, anchor_value)
+                samples = build_samples(item, anchor_value, self.shots)
                 sample_pos, sample_neg, positive, negative = samples
                 self.sample_pos.append(sample_pos)
                 self.sample_neg.append(sample_neg)
@@ -88,7 +95,7 @@ class myDataset(Dataset):
 
     def __getitem__(self, index):
         if self.train == 1:
-            samples = build_samples(self.data[index], self.anchor[index])
+            samples = build_samples(self.data[index], self.anchor[index], self.shots)
             sample_pos, sample_neg, positive, negative = samples
             return sample_pos.to(self.gpu), sample_neg.to(self.gpu), \
                 positive.to(self.gpu), negative.to(self.gpu)

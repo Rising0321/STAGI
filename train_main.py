@@ -101,8 +101,8 @@ def main(args):
 
     files = load_files(args.pretrain, config)
     # todo: change it back
-    # train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu, args.regression)
-    train_data, val_data, test_data, baseline_data = build_train_data_test(files, args.batch_size, args.gpu, config)
+    train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu, args.shots)
+    # train_data, val_data, test_data, baseline_data = build_train_data_test(files, args.batch_size, args.gpu, config)
 
     if args.model == "SVM":
         model = modelsSVM(config)
@@ -188,12 +188,12 @@ if __name__ == "__main__":
     parser.add_argument('--seed',
                         type=int,
                         help='Random seed',
-                        default=0)
+                        default=42)
 
     parser.add_argument('--patience',
                         type=int,
                         help='Patience',
-                        default=20)
+                        default=100)
 
     parser.add_argument('--model',
                         type=str,
@@ -229,6 +229,11 @@ if __name__ == "__main__":
                         type=int,
                         help='pretrain',
                         default=0)
+
+    parser.add_argument('--shots',
+                        type=int,
+                        help='1, 3, 5, 10 (50 for half)',
+                        default=5)
 
     args = parser.parse_args()
 

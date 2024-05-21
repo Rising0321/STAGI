@@ -75,7 +75,7 @@ def output(now):
     logging.info(now)
 
 
-def build_samples(item, anchor_value):
+def build_samples(item, anchor_value, shots):
     positive = np.where(item >= anchor_value)[0]
     negtive = np.where(item < anchor_value)[0]
 
@@ -89,17 +89,19 @@ def build_samples(item, anchor_value):
     negtive = negtive[int((len(negtive) * 0.5) // 1):]
 
     sam_len = min(len(pos_sample), len(neg_sample))
-    pr_len = min(len(pos_sample), len(negtive))
+    pr_len = min(len(positive), len(negtive))
 
     if sam_len == 0 or pr_len == 0:
         return -1
 
+    if shots != 50 and sam_len < 10:
+        return -1
     return 1
 
 
 # sample - positive - negative
-def build_data(data, files, bsz, gpu, train=1):
-    res = myDataset(gpu, train)
+def build_data(data, files, bsz, gpu, shots, train=1):
+    res = myDataset(gpu, shots, train)
     from tqdm import tqdm
     for item in tqdm(data):
         # iterater rate from 0.2 to 1
@@ -110,7 +112,7 @@ def build_data(data, files, bsz, gpu, train=1):
             if anchor_value == 0:
                 continue
 
-            samples = build_samples(item, anchor_value)
+            samples = build_samples(item, anchor_value, shots)
 
             if samples == -1:
                 continue
@@ -121,29 +123,7 @@ def build_data(data, files, bsz, gpu, train=1):
                                        shuffle=True)
 
 
-def build_dataRegression(data, files, bsz, gpu, train=1):
-    res = myDatasetRegression(gpu, train)
-
-    for item in data:
-        if train == 1:
-            res.append(item)
-        else:
-            for j in range(10):
-                while True:
-                    index = np.arange(len(item))
-                    np.random.shuffle(index)
-                    input_index = index[:int(0.7 * len(index))]
-                    if np.sum(item[input_index]) > 0:
-                        break
-                input_mask = torch.zeros(len(item))
-                input_mask[input_index] = 1
-                res.append((torch.FloatTensor(item), input_mask))
-
-    return torch.utils.data.DataLoader(res, batch_size=bsz,
-                                       shuffle=True)
-
-
-def build_train_data(files, batch_size, gpu, regression):
+def build_train_data(files, batch_size, gpu, shots):
     if type(files) != list:
         files = files.reshape(-1, files.shape[-1])
 
@@ -155,16 +135,15 @@ def build_train_data(files, batch_size, gpu, regression):
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
 
-    train_set = build_data(train_data, files, batch_size, gpu, train=1)
-    val_set = build_data(val_data, files, batch_size, gpu, train=0)
-    test_set = build_data(test_data, files, batch_size, gpu, train=0)
+    train_set = build_data(train_data, files, batch_size, gpu, shots, train=1)
+    val_set = build_data(val_data, files, batch_size, gpu, shots, train=0)
+    test_set = build_data(test_data, files, batch_size, gpu, shots, train=0)
     baseline_set = ""
 
     return train_set, val_set, test_set, baseline_set
 
 
 def build_train_data_test(files, batch_size, gpu, config):
-
     datas = np.load(config['matrix_path'])
 
     # print(datas.shape)
