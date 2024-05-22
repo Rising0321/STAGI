@@ -4,6 +4,7 @@ from sklearn.svm import OneClassSVM, SVC
 
 from utils.utils import ClassificationMetrices
 
+
 def combine_datas(config):
     walk_path = config['file_path']
     import os
@@ -13,6 +14,7 @@ def combine_datas(config):
             if file != "flow_matrix.npy":
                 res.append(root + "/" + file)
 
+    res = res[:int(len(res) * 0.7)]
     datas = []
     for item in res:
         now = np.load(item)
@@ -23,14 +25,14 @@ def combine_datas(config):
     print(datas.shape)
     return datas
 
+
 class modelsKNN:
     def __init__(self, config):
-        datas = np.load(config['matrix_path'])
-        datas = datas.reshape(-1, datas.shape[2])
-        self.feature = datas.transpose(0, 1)
         self.feature = combine_datas(config)
 
     def run(self, test_files):
+        import time
+        now_time = time.time()
         metrices = ClassificationMetrices()
         from tqdm import tqdm
         print("+1")
@@ -75,3 +77,4 @@ class modelsKNN:
             if cnt % 100 == 0:
                 print(metrices.output("test", cnt))
         metrices = metrices.output("test", 0)
+        print(time.time() - now_time)

@@ -75,7 +75,9 @@ class myLoss(nn.Module):
 
     def forward(self, probs, postive, negative):
         probs = torch.clamp(probs, min=1e-7, max=1 - 1e-7)
-
+        # print(probs[0])
+        # print(postive[0])
+        # print(negative[0])
         loss = - (postive * torch.log(probs) + negative * torch.log(1 - probs))
 
         return (loss / (torch.sum(postive) + torch.sum(negative))).sum()
@@ -109,8 +111,7 @@ class BertEmbeddings(nn.Module):
         position_ids = self.position_ids[:, :seq_length]
         inputs_embeds = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
-        embeddings = inputs_embeds + position_embeddings  # todo: delete this line
-
+        embeddings = inputs_embeds + position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -134,29 +135,34 @@ class MaskedGenerativeEncoderViT(nn.Module):
         super().__init__()
 
         # --------------------------------------------------------------------------
-        print("grid_num", grid_num)
-        self.codebook_size = grid_num * 2 + 1
+        # print("grid_num", grid_num)
+        self.codebook_size = grid_num + 2 + 1
         self.max_len = grid_num
 
         vocab_size = self.codebook_size
+
+        self.true_label = vocab_size - 3
+        self.false_label = vocab_size - 2
         self.mask_token_label = vocab_size - 1
+
+        dropout_rate = 0.01
 
         self.token_emb = BertEmbeddings(vocab_size=vocab_size,
                                         hidden_size=embed_dim,
                                         max_position_embeddings=self.max_len,
-                                        dropout=0.1)
+                                        dropout=dropout_rate)
         # --------------------------------------------------------------------------
 
         # ur encoder specifics
-        dropout_rate = 0.1
 
-        self.cls_token = torch.zeros(1, 1, embed_dim)
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer,
                   drop=dropout_rate, attn_drop=dropout_rate)
             for i in range(depth)])
+
         self.norm = norm_layer(embed_dim)
 
+        # build a 2-lauer mlp layer as self.mlp
         self.out = nn.Linear(embed_dim, 1)
 
         # --------------------------------------------------------------------------
@@ -188,19 +194,23 @@ class MaskedGenerativeEncoderViT(nn.Module):
         # 69 69 69 69 4 69 69 7 69 69 69
         b, c = pos_sam.shape
 
-        masks = torch.ones((b, self.codebook_size // 2), device=pos_sam.device,
-                           dtype=torch.long) * self.mask_token_label
-        pos_indices = torch.arange(0, self.codebook_size // 2, device=pos_sam.device, dtype=torch.long) \
-            .unsqueeze(0).expand(b, -1)
-        neg_indices = torch.arange(self.codebook_size // 2, self.codebook_size - 1, device=pos_sam.device,
-                                   dtype=torch.long).unsqueeze(0).expand(b, -1)
-        # print(x.shape, masks.shape, indices.shape)
-        masks[pos_sam.bool()] = pos_indices[pos_sam.bool()]
-        masks[neg_sam.bool()] = neg_indices[neg_sam.bool()]
+        masks = torch.ones((b, self.codebook_size - 3), device=pos_sam.device, dtype=torch.long) * self.mask_token_label
+
+        pos_indices = torch.ones((b, self.codebook_size - 3), device=pos_sam.device, dtype=torch.long) * self.true_label
+
+        neg_indices = torch.ones((b, self.codebook_size - 3), device=pos_sam.device,
+                                 dtype=torch.long) * self.false_label
+
+        # where pos_sample == 1 masks = pos_indices
+        masks = torch.where(pos_sam == 1, pos_indices, masks)
+        # where neg_sample == 1 masks = neg_indices
+        masks = torch.where(neg_sam == 1, neg_indices, masks)
+
         input_embeddings = self.token_emb(masks)
 
         for blk in self.blocks:
             input_embeddings = blk(input_embeddings)
+
         input_embeddings = self.norm(input_embeddings)
 
         probs = self.out(input_embeddings)
@@ -216,7 +226,6 @@ class MaskedGenerativeEncoderViT(nn.Module):
         return loss
 
     def calculate_acc(self, probs, train_tuple):
-        # print(probs)
         postive = train_tuple[2]
         negative = train_tuple[3]
         acc_pos = (int(torch.sum((probs > 0.5) * postive)), int(torch.sum(postive)))
@@ -231,7 +240,6 @@ class MaskedGenerativeEncoderViT(nn.Module):
 
 
 def ur_vit_base_patch16(grid_num=69, regression=1, **kwargs):
-    print('ur', grid_num)
     model = MaskedGenerativeEncoderViT(
         patch_size=16, embed_dim=512, depth=6, num_heads=8,
         decoder_embed_dim=512, decoder_depth=6, decoder_num_heads=8,
@@ -240,7 +248,6 @@ def ur_vit_base_patch16(grid_num=69, regression=1, **kwargs):
 
 
 def ur_vit_mid_patch16(grid_num=69, regression=1, **kwargs):
-    print('ur', grid_num)
     model = MaskedGenerativeEncoderViT(
         patch_size=16, embed_dim=512, depth=6, num_heads=8,
         decoder_embed_dim=512, decoder_depth=6, decoder_num_heads=8,

@@ -6,8 +6,14 @@
   <component name="ChangeListManager">
     <list default="true" id="a21da785-d823-4a81-ae41-2168c2956534" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/myDataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/data/myDataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/Beijing_rawPOI/process_beijing_task_regression.py" beforeDir="false" afterPath="$PROJECT_DIR$/data/Beijing_rawPOI/process_beijing_task_regression.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/rawPOI/taxi_zones.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/regression_data/flow_matrix.npy" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/MatrixFactorization.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/model/modelsAGI.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/modelsAGI.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/modelsFeature.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/modelsKNN.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/modelsKNN.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/modelsSVM.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/modelsSVM.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_main.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/utils.py" afterDir="false" />
     </list>
@@ -204,10 +210,10 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.process_beijing_task_regression" />
         <item itemvalue="Python tests.Python tests in train_main.py" />
         <item itemvalue="Python.modelsAGI" />
         <item itemvalue="Python.step-0-combine_all" />
-        <item itemvalue="Python.process_beijing_task_regression" />
         <item itemvalue="Python.myDataset" />
       </list>
     </recent_temporary>
@@ -273,7 +279,12 @@
       <workItem from="1715878736955" duration="4000" />
       <workItem from="1715953211496" duration="1284000" />
       <workItem from="1716190959098" duration="3307000" />
-      <workItem from="1716281749370" duration="6296000" />
+      <workItem from="1716281749370" duration="9526000" />
+      <workItem from="1716298592073" duration="2672000" />
+      <workItem from="1716302559512" duration="1486000" />
+      <workItem from="1716312782327" duration="4250000" />
+      <workItem from="1716343645120" duration="12551000" />
+      <workItem from="1716377851353" duration="2308000" />
     </task>
     <servers />
   </component>
@@ -283,14 +294,14 @@
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/STAGI$process_task_classification.coverage" NAME="process_task_classification Coverage Results" MODIFIED="1710934026097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data/rawPOI" />
     <SUITE FILE_PATH="coverage/STAGI$modelsAGI.coverage" NAME="modelsAGI Coverage Results" MODIFIED="1715417467879" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model" />
-    <SUITE FILE_PATH="coverage/STAGI$.coverage" NAME=" Coverage Results" MODIFIED="1715853204489" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/STAGI$.coverage" NAME=" Coverage Results" MODIFIED="1716296975206" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/STAGI$process_task_regression.coverage" NAME="process_task_regression Coverage Results" MODIFIED="1710992643481" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data/rawPOI" />
     <SUITE FILE_PATH="coverage/STAGI$step_0_combine_all.coverage" NAME="step-0-combine_all Coverage Results" MODIFIED="1714018365001" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data/raw" />
     <SUITE FILE_PATH="coverage/STAGI$step_1_buildODMatrix.coverage" NAME="step-1-buildODMatrix Coverage Results" MODIFIED="1710329420639" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data/processData" />
     <SUITE FILE_PATH="coverage/STAGI$step_0_pretrain.coverage" NAME="step-0-pretrain Coverage Results" MODIFIED="1710404102934" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/STAGI$train_main__1_.coverage" NAME="train_main (1) Coverage Results" MODIFIED="1711113895335" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/STAGI$myDataset.coverage" NAME="myDataset Coverage Results" MODIFIED="1711332182995" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data" />
-    <SUITE FILE_PATH="coverage/STAGI$train_main.coverage" NAME="train_main Coverage Results" MODIFIED="1716287722354" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/STAGI$process_beijing_task_regression.coverage" NAME="process_beijing_task_regression Coverage Results" MODIFIED="1712683087275" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data/Beijing_rawPOI" />
+    <SUITE FILE_PATH="coverage/STAGI$train_main.coverage" NAME="train_main Coverage Results" MODIFIED="1716354888168" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/STAGI$process_beijing_task_regression.coverage" NAME="process_beijing_task_regression Coverage Results" MODIFIED="1716346627398" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data/Beijing_rawPOI" />
   </component>
 </project>

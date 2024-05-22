@@ -127,13 +127,16 @@ def build_train_data(files, batch_size, gpu, shots):
     if type(files) != list:
         files = files.reshape(-1, files.shape[-1])
 
-    np.random.shuffle(files)
+    # np.random.shuffle(files)
 
     rate_train, rate_val, rate_test = 0.7, 0.15, 0.15
 
     train_data = files[:int(len(files) * rate_train)]
     val_data = files[int(len(files) * rate_train):int(len(files) * (rate_train + rate_val))]
     test_data = files[int(len(files) * (rate_train + rate_val)):]
+
+    # todo： uplaad
+    # train_data = train_data[:int(0.2 * len(train_data))]
 
     train_set = build_data(train_data, files, batch_size, gpu, shots, train=1)
     val_set = build_data(val_data, files, batch_size, gpu, shots, train=0)
