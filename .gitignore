@@ -2,3 +2,4 @@
 ./data/rawPOI/Point_Of_Interest.csv
 ./data/Beijing_rawPOI
 ./cached
+./.idea

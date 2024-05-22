@@ -217,7 +217,7 @@ if __name__ == "__main__":
     parser.add_argument('--load_path',
                         type=str,
                         help='load_path',
-                        default="/home/zhangrx/STAGI/checkpoints/Manhattan/ours-1-48.pth")  # /home/zhangrx/STAGI/checkpoints/Manhattan/ours-1-48.pth
+                        default="")  # ./checkpoints/Manhattan/ours-1-48.pth
 
     parser.add_argument('--regression',
                         type=int,
