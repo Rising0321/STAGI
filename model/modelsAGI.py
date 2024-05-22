@@ -74,36 +74,13 @@ class myLoss(nn.Module):
         super(myLoss, self).__init__()
 
     def forward(self, probs, postive, negative):
-        log_probs_pos = -torch.log(probs + 1e-6)
-        postive_prob = torch.mul(log_probs_pos, postive)
+        probs = torch.clamp(probs, min=1e-7, max=1 - 1e-7)
+        # print(probs[0])
+        # print(postive[0])
+        # print(negative[0])
+        loss = - (postive * torch.log(probs) + negative * torch.log(1 - probs))
 
-        log_probs_meg = -torch.log(1 - probs - 1e-6)
-        negative_prob = torch.mul(log_probs_meg, negative)
-
-        # print(torch.sum(postive_prob), torch.sum(negative_prob))
-
-        loss = (torch.sum(postive_prob) + torch.sum(negative_prob))  # / (torch.sum(postive) + torch.sum(negative))
-
-        return loss
-
-
-class myLossRegression(nn.Module):
-
-    def __init__(self):
-        super(myLossRegression, self).__init__()
-        self.criteria = nn.MSELoss()
-
-    def forward(self, probs, anchor, postive, negative):
-        loss_initial = self.criteria(probs, anchor)
-        loss_pos = torch.mul(loss_initial, postive)
-
-        loss_neg = torch.mul(loss_initial, negative)
-
-        # print(torch.sum(postive_prob), torch.sum(negative_prob))
-
-        loss = (torch.sum(loss_pos) + torch.sum(loss_neg))  # / (torch.sum(postive) + torch.sum(negative))
-
-        return loss
+        return (loss / (torch.sum(postive) + torch.sum(negative))).sum()
 
 
 class BertEmbeddings(nn.Module):
@@ -134,38 +111,10 @@ class BertEmbeddings(nn.Module):
         position_ids = self.position_ids[:, :seq_length]
         inputs_embeds = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
-        embeddings = inputs_embeds + position_embeddings  # todo: delete this line
-
+        embeddings = inputs_embeds + position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
-
-
-class ContinuousValueEncoder(nn.Module):
-    def __init__(self, output_dim, max_position_embeddings=96):
-        super(ContinuousValueEncoder, self).__init__()
-        self.linear = nn.Linear(1, output_dim)
-        # 为-1的情况预定义一个编码向量
-        self.special_encoding = nn.Parameter(torch.randn(output_dim))
-        self.position_embeddings = nn.Embedding(max_position_embeddings, output_dim)
-        self.register_buffer("position_ids", torch.arange(max_position_embeddings).expand((1, -1)))
-        self.dropout = nn.Dropout(0.1)
-
-    def forward(self, x):
-        # 判断输入是否为-1
-        is_special = (x == -1).float().unsqueeze(-1)  # 增加维度以适应广播 B x L
-        # 通过线性层对输入进行编码
-        x_encoded = self.linear(x.unsqueeze(-1))  # B x L x D
-        # 使用特殊值的编码向量替换-1对应的编码
-        x_encoded = torch.where(is_special == 1, self.special_encoding.expand_as(x_encoded), x_encoded)
-
-        seq_length = x.shape[1]
-        position_ids = self.position_ids[:, :seq_length]
-        position_embeddings = self.position_embeddings(position_ids)
-        x_encoded = x_encoded + position_embeddings
-
-        x_encoded = self.dropout(x_encoded)
-        return x_encoded
 
 
 # 3 stage:
@@ -186,49 +135,44 @@ class MaskedGenerativeEncoderViT(nn.Module):
         super().__init__()
 
         # --------------------------------------------------------------------------
-        print("grid_num", grid_num)
-        self.codebook_size = grid_num * 2 + 1
+        # print("grid_num", grid_num)
+        self.codebook_size = grid_num + 2 + 1
         self.max_len = grid_num
 
         vocab_size = self.codebook_size
+
+        self.true_label = vocab_size - 3
+        self.false_label = vocab_size - 2
         self.mask_token_label = vocab_size - 1
 
-        if regression == 1:
-            self.token_emb = ContinuousValueEncoder(embed_dim,
-                                                    max_position_embeddings=self.max_len)
-        else:
-            self.token_emb = BertEmbeddings(vocab_size=vocab_size,
-                                            hidden_size=embed_dim,
-                                            max_position_embeddings=self.max_len,
-                                            dropout=0.1)
+        dropout_rate = 0.01
+
+        self.token_emb = BertEmbeddings(vocab_size=vocab_size,
+                                        hidden_size=embed_dim,
+                                        max_position_embeddings=self.max_len,
+                                        dropout=dropout_rate)
         # --------------------------------------------------------------------------
 
         # ur encoder specifics
-        dropout_rate = 0.1
 
-        self.cls_token = torch.zeros(1, 1, embed_dim)
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer,
                   drop=dropout_rate, attn_drop=dropout_rate)
             for i in range(depth)])
+
         self.norm = norm_layer(embed_dim)
 
+        # build a 2-lauer mlp layer as self.mlp
         self.out = nn.Linear(embed_dim, 1)
 
         # --------------------------------------------------------------------------
         self.norm_pix_loss = norm_pix_loss
 
-        if regression:
-            self.criterion = nn.MSELoss()
-        else:
-            self.criterion = myLoss()
+        self.criterion = myLoss()
 
         self.initialize_weights()
 
         self.regression = regression
-
-    def get_mask_token_label(self):
-        return self.mask_token_label
 
     def initialize_weights(self):
         self.apply(self._init_weights)
@@ -250,47 +194,38 @@ class MaskedGenerativeEncoderViT(nn.Module):
         # 69 69 69 69 4 69 69 7 69 69 69
         b, c = pos_sam.shape
 
-        # bert embedding
-        if self.regression == 1:
-            masks = torch.ones((b, self.codebook_size - 1), device=pos_sam.device, dtype=torch.float) * -1
-            masks = torch.where(train_tuple[1] == 1, masks, train_tuple[0])
+        masks = torch.ones((b, self.codebook_size - 3), device=pos_sam.device, dtype=torch.long) * self.mask_token_label
 
-            input_embeddings = self.token_emb(masks)
-        else:
-            masks = torch.ones((b, self.codebook_size // 2), device=pos_sam.device,
-                               dtype=torch.long) * self.mask_token_label
-            pos_indices = torch.arange(0, self.codebook_size // 2, device=pos_sam.device, dtype=torch.long) \
-                .unsqueeze(0).expand(b, -1)
-            neg_indices = torch.arange(self.codebook_size // 2, self.codebook_size - 1, device=pos_sam.device,
-                                       dtype=torch.long).unsqueeze(0).expand(b, -1)
-            # print(x.shape, masks.shape, indices.shape)
-            masks[pos_sam.bool()] = pos_indices[pos_sam.bool()]
-            masks[neg_sam.bool()] = neg_indices[neg_sam.bool()]
-            input_embeddings = self.token_emb(masks)
+        pos_indices = torch.ones((b, self.codebook_size - 3), device=pos_sam.device, dtype=torch.long) * self.true_label
+
+        neg_indices = torch.ones((b, self.codebook_size - 3), device=pos_sam.device,
+                                 dtype=torch.long) * self.false_label
+
+        # where pos_sample == 1 masks = pos_indices
+        masks = torch.where(pos_sam == 1, pos_indices, masks)
+        # where neg_sample == 1 masks = neg_indices
+        masks = torch.where(neg_sam == 1, neg_indices, masks)
+
+        input_embeddings = self.token_emb(masks)
 
         for blk in self.blocks:
             input_embeddings = blk(input_embeddings)
+
         input_embeddings = self.norm(input_embeddings)
 
         probs = self.out(input_embeddings)
-        # use sigmoid to get the probability
-        if self.regression == 0:
-            probs = torch.sigmoid(probs).squeeze(-1)
+
+        probs = torch.sigmoid(probs).squeeze(-1)
 
         return probs
 
     def forward_loss(self, probs, train_tuple):
-        # print(probs.shape, train_tuple[0].shape)
-        if self.regression == 1:
-            loss = self.criterion(probs.squeeze(-1), train_tuple[0])
-        else:
-            postive = train_tuple[2]
-            negative = train_tuple[3]
-            loss = self.criterion(probs, postive, negative)
+        postive = train_tuple[2]
+        negative = train_tuple[3]
+        loss = self.criterion(probs, postive, negative)
         return loss
 
     def calculate_acc(self, probs, train_tuple):
-        # print(probs)
         postive = train_tuple[2]
         negative = train_tuple[3]
         acc_pos = (int(torch.sum((probs > 0.5) * postive)), int(torch.sum(postive)))
@@ -300,12 +235,19 @@ class MaskedGenerativeEncoderViT(nn.Module):
     def forward(self, train_tuple):
         probs = self.forward_encoder(train_tuple)
         loss = self.forward_loss(probs, train_tuple)
-        acc = ((probs, train_tuple) if self.regression == 1 else self.calculate_acc(probs, train_tuple))
+        acc = self.calculate_acc(probs, train_tuple)
         return loss, acc
 
 
 def ur_vit_base_patch16(grid_num=69, regression=1, **kwargs):
-    print('ur', grid_num)
+    model = MaskedGenerativeEncoderViT(
+        patch_size=16, embed_dim=512, depth=6, num_heads=8,
+        decoder_embed_dim=512, decoder_depth=6, decoder_num_heads=8,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), grid_num=grid_num, regression=regression, **kwargs)
+    return model
+
+
+def ur_vit_mid_patch16(grid_num=69, regression=1, **kwargs):
     model = MaskedGenerativeEncoderViT(
         patch_size=16, embed_dim=512, depth=6, num_heads=8,
         decoder_embed_dim=512, decoder_depth=6, decoder_num_heads=8,

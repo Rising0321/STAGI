@@ -8,10 +8,12 @@ from tqdm import tqdm
 from model.modelsAGI import ur_vit_base_patch16
 from model.modelsFeature import modelsFeature
 from model.modelsKNN import modelsKNN
+from model.modelsMLP import modelsMLP
 from model.modelsSVM import modelsSVM
 from utils.utils import load_config, load_files, build_train_data, init_seed, init_logging, output, evaluation, \
     build_train_data_test
 from utils.utils import ClassificationMetrices, RegressionMetrices
+import time
 
 
 def train(model, train_data, optimizer, scheduler, epoch, regression, phase):
@@ -101,8 +103,8 @@ def main(args):
 
     files = load_files(args.pretrain, config)
     # todo: change it back
-    # train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu, args.regression)
-    train_data, val_data, test_data, baseline_data = build_train_data_test(files, args.batch_size, args.gpu, config)
+    train_data, val_data, test_data, baseline_data = build_train_data(files, args.batch_size, args.gpu, args.shots)
+    # train_data, val_data, test_data, baseline_data = build_train_data_test(files, args.batch_size, args.gpu, config)
 
     if args.model == "SVM":
         model = modelsSVM(config)
@@ -112,8 +114,8 @@ def main(args):
         model = modelsKNN(config)
         model.run(test_data)
         exit(0)
-    elif args.model == "feature":
-        model = modelsFeature(config)
+    elif args.model == "MLP":
+        model = modelsMLP(config)
         model.run(test_data)
         exit(0)
 
@@ -121,7 +123,12 @@ def main(args):
 
     if args.load_path != "":
         model.load_state_dict(torch.load(args.load_path))
-
+    '''
+    now_weight = model.token_emb.position_embeddings.weight.data.clone()
+    print(now_weight.shape)
+    print(now_weight)
+    np.save("./region_embedding.npy", now_weight.cpu().numpy())
+    '''
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
@@ -131,12 +138,12 @@ def main(args):
     cnt = 0
 
     for epoch in range(1, args.epochs):
-        train(model, train_data, optimizer, scheduler, epoch, args.regression, "train")
-
         if epoch % args.test_epochs == 0:
             eval_metrices = test(model, val_data, epoch, args.regression, "val")
-
+            # calculate time (seconds) for test
+            now = time.time()
             test_metrices = test(model, test_data, epoch, args.regression, "test")
+            print("Time for test: ", time.time() - now)
 
             if best_eval_metrices == -1 or eval_metrices[0] > best_eval_metrices[0]:
                 best_eval_metrices = eval_metrices
@@ -149,6 +156,8 @@ def main(args):
                     output("Early stopping")
                     output(f"Best Metrices: {best_test_metrices}")
                     break
+
+        train(model, train_data, optimizer, scheduler, epoch, args.regression, "train")
 
         if epoch % args.test_epochs == 0:
             torch.save(model.state_dict(), f"./checkpoints/{args.data}/{args.model}-{args.pretrain}-{epoch}.pth")
@@ -168,7 +177,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size',
                         type=int,
                         help='batch_size',
-                        default=100)
+                        default=16)
 
     parser.add_argument('--lr',
                         type=float,
@@ -188,16 +197,16 @@ if __name__ == "__main__":
     parser.add_argument('--seed',
                         type=int,
                         help='Random seed',
-                        default=0)
+                        default=42)
 
     parser.add_argument('--patience',
                         type=int,
                         help='Patience',
-                        default=20)
+                        default=30)
 
     parser.add_argument('--model',
                         type=str,
-                        help='model type: KNN SVM feature',
+                        help='model type: KNN SVM MLP',
                         default="ours")
 
     parser.add_argument('--model_name',
@@ -208,7 +217,7 @@ if __name__ == "__main__":
     parser.add_argument('--load_path',
                         type=str,
                         help='load_path',
-                        default="")
+                        default="")  # ./checkpoints/Manhattan/ours-1-48.pth
 
     parser.add_argument('--regression',
                         type=int,
@@ -229,6 +238,11 @@ if __name__ == "__main__":
                         type=int,
                         help='pretrain',
                         default=0)
+
+    parser.add_argument('--shots',
+                        type=int,
+                        help='1, 3, 5, 10 (50 for half)',
+                        default=5)
 
     args = parser.parse_args()
 

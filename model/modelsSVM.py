@@ -13,6 +13,7 @@ def combine_datas(config):
             if file != "flow_matrix.npy":
                 res.append(root + "/" + file)
 
+    res = res[:int(len(res) * 0.7)]
     datas = []
     for item in res:
         now = np.load(item)
@@ -26,11 +27,13 @@ def combine_datas(config):
 
 class modelsSVM:
     def __init__(self, config):
+        '''
         datas = np.load(config['matrix_path'])
         datas = datas.reshape(-1, datas.shape[2])
         self.feature = datas.transpose()
         print(self.feature.shape)
-        self.feature = np.concatenate([self.feature, combine_datas(config)], axis=1)
+        '''
+        self.feature = combine_datas(config)
         # print(self.feature.shape)
 
     def run(self, test_files):
@@ -38,6 +41,8 @@ class modelsSVM:
         from tqdm import tqdm
         print("+1")
         cnt = 0
+        import time
+        now_time = time.time()
         for test_tuple in tqdm(test_files):
             sample_pos_list, sample_neg_list, positive_list, negative_list = test_tuple
             for i in range(len(sample_pos_list)):
@@ -79,3 +84,4 @@ class modelsSVM:
             if cnt % 100 == 0:
                 print(metrices.output("test", cnt))
         metrices = metrices.output("test", 0)
+        print(time.time() - now_time)

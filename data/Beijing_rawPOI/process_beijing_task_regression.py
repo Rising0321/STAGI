@@ -21,11 +21,7 @@ my_selected_type = ['交通地名']
 filtered_data = raw_data[raw_data['mid_type'].isin(selected_type) & ~ raw_data['mid_type'].isin(my_selected_type)]
 print('filtered_data:', len(filtered_data))
 
-# filtered_data = filtered_data.groupby('mid_type').apply(
-#     lambda x: x.sample(min(len(x), SAMPLE_SIZE), random_state=42)).reset_index(drop=True)
-# print('filtered_data:', len(filtered_data))
 
-# 划分北京网格，（0.01单位-1020格）
 
 def transfer_gps_to_int(gps):
     return int((gps[0] - 116.2075) * 100) * 30 + int((gps[1] - 39.7523) * 100)
