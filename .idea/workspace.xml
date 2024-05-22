@@ -5,10 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a21da785-d823-4a81-ae41-2168c2956534" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/checkpoints/Manhattan/ours-1-48.pth" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_main.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,6 +26,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$USER_HOME$/Documents/WeChat Files/wxid_fv7ifbmz80a721/FileStorage/File/2024-05/S0278431915000316.bib" root0="SKIP_INSPECTION" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -277,7 +279,7 @@
       <workItem from="1716302559512" duration="1486000" />
       <workItem from="1716312782327" duration="4250000" />
       <workItem from="1716343645120" duration="12551000" />
-      <workItem from="1716377851353" duration="2458000" />
+      <workItem from="1716377851353" duration="3696000" />
     </task>
     <servers />
   </component>
